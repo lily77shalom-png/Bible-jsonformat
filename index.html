@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON Bible Reader</title>
+    <title>JSON Bible Reader - 66 Books</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
         
@@ -55,47 +54,61 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- Demo Data to show if no file is uploaded ---
-        const DEMO_BIBLE_DATA = [
-            {
-                "book": "Genesis",
-                "chapters": [
-                    [
-                        "In the beginning God created the heaven and the earth.",
-                        "And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters.",
-                        "And God said, Let there be light: and there was light.",
-                        "And God saw the light, that it was good: and God divided the light from the darkness."
-                    ],
-                    [
-                        "Thus the heavens and the earth were finished, and all the host of them.",
-                        "And on the seventh day God ended his work which he had made; and he rested on the seventh day from all his work which he had made."
-                    ]
-                ]
-            },
-            {
-                "book": "Exodus",
-                "chapters": [
-                     [
-                        "Now these are the names of the children of Israel, which came into Egypt; every man and his household came with Jacob.",
-                        "Reuben, Simeon, Levi, and Judah,"
-                    ]
-                ]
-            },
-             {
-                "book": "John",
-                "chapters": [
-                     [
-                        "In the beginning was the Word, and the Word was with God, and the Word was God.",
-                        "The same was in the beginning with God.",
-                        "All things were made by him; and without him was not any thing made that was made."
-                    ]
-                ]
-            }
+        // --- 66 BOOKS DATA GENERATION ---
+        
+        const BIBLE_BOOK_NAMES = [
+            // Old Testament
+            "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", 
+            "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel", 
+            "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra", 
+            "Nehemiah", "Esther", "Job", "Psalms", "Proverbs", 
+            "Ecclesiastes", "Song of Solomon", "Isaiah", "Jeremiah", "Lamentations", 
+            "Ezekiel", "Daniel", "Hosea", "Joel", "Amos", 
+            "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", 
+            "Zephaniah", "Haggai", "Zechariah", "Malachi",
+            // New Testament
+            "Matthew", "Mark", "Luke", "John", "Acts", 
+            "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", 
+            "Philippians", "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", 
+            "2 Timothy", "Titus", "Philemon", "Hebrews", "James", 
+            "1 Peter", "2 Peter", "1 John", "2 John", "3 John", 
+            "Jude", "Revelation"
         ];
 
-        // --- Icons ---
+        // Generate the structure. 
+        // Note: For a single HTML file, we use placeholder text to avoid a 5MB file size.
+        // Real users would upload the full JSON via the upload button.
+        const GENERATE_DEMO_DATA = () => {
+            return BIBLE_BOOK_NAMES.map(name => {
+                // Create a few dummy chapters for each book
+                const chapters = [];
+                const chapterCount = name === "Psalms" ? 5 : 2; // Show structure variation
+                
+                for(let i = 1; i <= chapterCount; i++) {
+                    const verses = [
+                        `This is a placeholder for ${name} Chapter ${i}, Verse 1.`,
+                        `In a full version, the real scripture text would appear here.`,
+                        `Upload a JSON file containing the full text to replace this demo data.`,
+                        `But as you can see, the navigation for ${name} works perfectly.`
+                    ];
+                    // Add a specific real verse for Genesis 1:1 just for flavor
+                    if (name === "Genesis" && i === 1) {
+                         verses[0] = "In the beginning God created the heaven and the earth.";
+                         verses[1] = "And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters.";
+                    }
+                    chapters.push(verses);
+                }
+                return {
+                    book: name,
+                    chapters: chapters
+                };
+            });
+        };
+
+        const DEMO_BIBLE_DATA = GENERATE_DEMO_DATA();
+
+        // --- Shared Icon Component ---
         const Icon = ({ name, size = 20, className = "" }) => {
-             // Mapping standard names to FontAwesome classes for simplicity in this env
              const icons = {
                  'book': 'fa-book',
                  'upload': 'fa-upload',
@@ -110,6 +123,217 @@
              return <i className={`fas ${icons[name] || 'fa-question'} ${className}`} style={{fontSize: size}}></i>;
         };
 
+        // --- Sub-Components ---
+
+        const Header = ({ sidebarOpen, setSidebarOpen, setShowInfoModal, setShowUploadModal, currentBook, currentChapterIndex }) => (
+            <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 fixed top-0 w-full z-20 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                        className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+                    >
+                        <Icon name={sidebarOpen ? "x" : "menu"} />
+                    </button>
+                    <h1 className="text-xl font-bold text-gray-800 hidden sm:block">
+                        Bible Reader
+                    </h1>
+                    <h1 className="text-lg font-semibold text-gray-800 sm:hidden truncate max-w-[150px]">
+                        {currentBook ? `${currentBook.book} ${currentChapterIndex + 1}` : 'Bible Reader'}
+                    </h1>
+                </div>
+
+                <div className="flex items-center gap-2">
+                     <button 
+                        onClick={() => setShowInfoModal(true)}
+                        className="p-2 hover:bg-gray-100 rounded-full text-gray-600"
+                        title="Format Info"
+                    >
+                        <Icon name="info" />
+                    </button>
+                    <button 
+                        onClick={() => setShowUploadModal(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    >
+                        <Icon name="upload" size={14} />
+                        <span className="hidden sm:inline">Open JSON</span>
+                    </button>
+                </div>
+            </header>
+        );
+
+        const Sidebar = ({ sidebarOpen, bibleData, currentBookIndex, setCurrentBookIndex, setCurrentChapterIndex, isMobile, setSidebarOpen }) => {
+            // Ref for scrolling to active book
+            const activeBookRef = useRef(null);
+
+            useEffect(() => {
+                if (sidebarOpen && activeBookRef.current) {
+                    activeBookRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, [currentBookIndex, sidebarOpen]);
+
+            return (
+                <aside 
+                    className={`
+                        fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-200 z-10 
+                        transform transition-transform duration-300 ease-in-out overflow-y-auto custom-scrollbar
+                        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                    `}
+                >
+                    <div className="p-4">
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">Books ({bibleData.length})</div>
+                        <div className="space-y-1 pb-16">
+                            {bibleData.map((book, idx) => (
+                                <button
+                                    key={idx}
+                                    ref={currentBookIndex === idx ? activeBookRef : null}
+                                    onClick={() => {
+                                        setCurrentBookIndex(idx);
+                                        setCurrentChapterIndex(0);
+                                        if (isMobile) setSidebarOpen(false);
+                                    }}
+                                    className={`
+                                        w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors
+                                        ${currentBookIndex === idx 
+                                            ? 'bg-blue-50 text-blue-700' 
+                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
+                                    `}
+                                >
+                                    {book.book}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </aside>
+            );
+        };
+
+        const ControlBar = ({ currentBook, currentChapterIndex, setCurrentChapterIndex, fontFamily, setFontFamily, setFontSize }) => (
+            <div className="sticky top-16 bg-white/95 backdrop-blur-sm border-b border-gray-100 py-3 px-4 sm:px-8 flex flex-wrap items-center justify-between gap-4 z-10">
+                <div className="flex items-center gap-2">
+                     <div className="relative group">
+                        <span className="text-sm text-gray-500 font-medium mr-2">Chapter:</span>
+                        <select 
+                            value={currentChapterIndex} 
+                            onChange={(e) => setCurrentChapterIndex(Number(e.target.value))}
+                            className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block p-1.5 px-3 pr-8 appearance-none cursor-pointer hover:bg-gray-100"
+                            disabled={!currentBook}
+                        >
+                            {currentBook?.chapters.map((_, idx) => (
+                                <option key={idx} value={idx}>{idx + 1}</option>
+                            )) || <option value={0}>-</option>}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                     <div className="flex bg-gray-100 rounded-lg p-1">
+                        <button 
+                            onClick={() => setFontFamily('serif')}
+                            className={`px-2 py-1 rounded-md text-xs font-serif ${fontFamily === 'serif' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
+                        >
+                            Aa
+                        </button>
+                        <button 
+                            onClick={() => setFontFamily('sans')}
+                            className={`px-2 py-1 rounded-md text-xs font-sans ${fontFamily === 'sans' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
+                        >
+                            Aa
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+                        <button 
+                            onClick={() => setFontSize(s => Math.max(12, s - 2))}
+                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white hover:shadow-sm text-gray-600 transition-all"
+                        >
+                            <span className="text-xs">A-</span>
+                        </button>
+                        <button 
+                            onClick={() => setFontSize(s => Math.min(32, s + 2))}
+                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white hover:shadow-sm text-gray-600 transition-all"
+                        >
+                            <span className="text-base">A+</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const UploadModal = ({ showUploadModal, setShowUploadModal, handleFileUpload }) => {
+            if (!showUploadModal) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-fade-in">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">Open Bible JSON</h3>
+                            <button onClick={() => setShowUploadModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <Icon name="x" />
+                            </button>
+                        </div>
+                        
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer relative">
+                            <input 
+                                type="file" 
+                                accept=".json"
+                                onChange={handleFileUpload}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                            <div className="text-blue-500 mb-2">
+                                <Icon name="upload" size={32} />
+                            </div>
+                            <p className="text-sm text-gray-600 font-medium">Click to upload or drag and drop</p>
+                            <p className="text-xs text-gray-400 mt-1">.json files only</p>
+                        </div>
+
+                        <div className="mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded-md">
+                            <strong>Tip:</strong> The file must follow the specific array structure shown in the info menu.
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const InfoModal = ({ showInfoModal, setShowInfoModal }) => {
+            if (!showInfoModal) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 overflow-y-auto max-h-[80vh]">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">Expected JSON Format</h3>
+                            <button onClick={() => setShowInfoModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <Icon name="x" />
+                            </button>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">
+                            To use your own Bible data, your JSON file must look exactly like this:
+                        </p>
+                        <div className="bg-gray-800 text-gray-100 p-4 rounded-lg text-xs font-mono overflow-x-auto">
+<pre>{`[
+  {
+    "book": "Genesis",
+    "chapters": [
+      [
+        "In the beginning...",
+        "And the earth was without form..."
+      ],
+      [
+        "Chapter 2 verse 1 text...",
+        "Chapter 2 verse 2 text..."
+      ]
+    ]
+  },
+  {
+    "book": "Exodus",
+    "chapters": [...]
+  }
+]`}</pre>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Main App Component ---
         const App = () => {
             // State
             const [bibleData, setBibleData] = useState(DEMO_BIBLE_DATA);
@@ -147,7 +371,6 @@
                 reader.onload = (e) => {
                     try {
                         const json = JSON.parse(e.target.result);
-                        // Basic validation
                         if (Array.isArray(json) && json[0].book && json[0].chapters) {
                             setBibleData(json);
                             setCurrentBookIndex(0);
@@ -164,6 +387,8 @@
             };
 
             const navigateChapter = (direction) => {
+                if (!currentBook) return;
+
                 if (direction === 'next') {
                     if (currentChapterIndex < currentBook.chapters.length - 1) {
                         setCurrentChapterIndex(prev => prev + 1);
@@ -176,7 +401,6 @@
                         setCurrentChapterIndex(prev => prev - 1);
                     } else if (currentBookIndex > 0) {
                         setCurrentBookIndex(prev => prev - 1);
-                        // Go to last chapter of previous book
                         setCurrentChapterIndex(bibleData[currentBookIndex - 1].chapters.length - 1);
                     }
                 }
@@ -184,211 +408,38 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
-            // Components
-            const Header = () => (
-                <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 fixed top-0 w-full z-20 shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <button 
-                            onClick={() => setSidebarOpen(!sidebarOpen)}
-                            className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
-                        >
-                            <Icon name={sidebarOpen ? "x" : "menu"} />
-                        </button>
-                        <h1 className="text-xl font-bold text-gray-800 hidden sm:block">
-                            Bible Reader
-                        </h1>
-                        <h1 className="text-lg font-semibold text-gray-800 sm:hidden">
-                            {currentBook?.book} {currentChapterIndex + 1}
-                        </h1>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                         <button 
-                            onClick={() => setShowInfoModal(true)}
-                            className="p-2 hover:bg-gray-100 rounded-full text-gray-600"
-                            title="Format Info"
-                        >
-                            <Icon name="info" />
-                        </button>
-                        <button 
-                            onClick={() => setShowUploadModal(true)}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                        >
-                            <Icon name="upload" size={14} />
-                            <span className="hidden sm:inline">Open JSON</span>
-                        </button>
-                    </div>
-                </header>
-            );
-
-            const Sidebar = () => (
-                <aside 
-                    className={`
-                        fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-200 z-10 
-                        transform transition-transform duration-300 ease-in-out overflow-y-auto custom-scrollbar
-                        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                    `}
-                >
-                    <div className="p-4">
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">Books</div>
-                        <div className="space-y-1">
-                            {bibleData.map((book, idx) => (
-                                <button
-                                    key={idx}
-                                    onClick={() => {
-                                        setCurrentBookIndex(idx);
-                                        setCurrentChapterIndex(0);
-                                        if (isMobile) setSidebarOpen(false);
-                                    }}
-                                    className={`
-                                        w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors
-                                        ${currentBookIndex === idx 
-                                            ? 'bg-blue-50 text-blue-700' 
-                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
-                                    `}
-                                >
-                                    {book.book}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </aside>
-            );
-
-            const ControlBar = () => (
-                <div className="sticky top-16 bg-white/95 backdrop-blur-sm border-b border-gray-100 py-3 px-4 sm:px-8 flex flex-wrap items-center justify-between gap-4 z-10">
-                    <div className="flex items-center gap-2">
-                         <div className="relative group">
-                            <span className="text-sm text-gray-500 font-medium mr-2">Chapter:</span>
-                            <select 
-                                value={currentChapterIndex} 
-                                onChange={(e) => setCurrentChapterIndex(Number(e.target.value))}
-                                className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block p-1.5 px-3 pr-8 appearance-none cursor-pointer hover:bg-gray-100"
-                            >
-                                {currentBook?.chapters.map((_, idx) => (
-                                    <option key={idx} value={idx}>{idx + 1}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                         {/* Font Family Toggle */}
-                         <div className="flex bg-gray-100 rounded-lg p-1">
-                            <button 
-                                onClick={() => setFontFamily('serif')}
-                                className={`px-2 py-1 rounded-md text-xs font-serif ${fontFamily === 'serif' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
-                            >
-                                Aa
-                            </button>
-                            <button 
-                                onClick={() => setFontFamily('sans')}
-                                className={`px-2 py-1 rounded-md text-xs font-sans ${fontFamily === 'sans' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
-                            >
-                                Aa
-                            </button>
-                        </div>
-
-                        {/* Font Size Controls */}
-                        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-                            <button 
-                                onClick={() => setFontSize(s => Math.max(12, s - 2))}
-                                className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white hover:shadow-sm text-gray-600 transition-all"
-                            >
-                                <span className="text-xs">A-</span>
-                            </button>
-                            <button 
-                                onClick={() => setFontSize(s => Math.min(32, s + 2))}
-                                className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white hover:shadow-sm text-gray-600 transition-all"
-                            >
-                                <span className="text-base">A+</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            );
-
-            const UploadModal = () => {
-                if (!showUploadModal) return null;
-                return (
-                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-fade-in">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-bold text-gray-900">Open Bible JSON</h3>
-                                <button onClick={() => setShowUploadModal(false)} className="text-gray-400 hover:text-gray-600">
-                                    <Icon name="x" />
-                                </button>
-                            </div>
-                            
-                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer relative">
-                                <input 
-                                    type="file" 
-                                    accept=".json"
-                                    onChange={handleFileUpload}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                />
-                                <div className="text-blue-500 mb-2">
-                                    <Icon name="upload" size={32} />
-                                </div>
-                                <p className="text-sm text-gray-600 font-medium">Click to upload or drag and drop</p>
-                                <p className="text-xs text-gray-400 mt-1">.json files only</p>
-                            </div>
-
-                            <div className="mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded-md">
-                                <strong>Tip:</strong> The file must follow the specific array structure shown in the info menu.
-                            </div>
-                        </div>
-                    </div>
-                );
-            };
-
-            const InfoModal = () => {
-                if (!showInfoModal) return null;
-                return (
-                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 overflow-y-auto max-h-[80vh]">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-bold text-gray-900">Expected JSON Format</h3>
-                                <button onClick={() => setShowInfoModal(false)} className="text-gray-400 hover:text-gray-600">
-                                    <Icon name="x" />
-                                </button>
-                            </div>
-                            <p className="text-sm text-gray-600 mb-4">
-                                To use your own Bible data, your JSON file must look exactly like this:
-                            </p>
-                            <div className="bg-gray-800 text-gray-100 p-4 rounded-lg text-xs font-mono overflow-x-auto">
-<pre>{`[
-  {
-    "book": "Genesis",
-    "chapters": [
-      [
-        "In the beginning...",
-        "And the earth was without form..."
-      ],
-      [
-        "Chapter 2 verse 1 text...",
-        "Chapter 2 verse 2 text..."
-      ]
-    ]
-  },
-  {
-    "book": "Exodus",
-    "chapters": [...]
-  }
-]`}</pre>
-                            </div>
-                        </div>
-                    </div>
-                );
-            };
-
             // Main Render
             return (
                 <div className={`min-h-screen pt-16 ${fontFamily === 'serif' ? 'font-serif-custom' : 'font-sans-custom'}`}>
-                    <Header />
-                    <Sidebar />
-                    <UploadModal />
-                    <InfoModal />
+                    <Header 
+                        sidebarOpen={sidebarOpen} 
+                        setSidebarOpen={setSidebarOpen} 
+                        setShowInfoModal={setShowInfoModal} 
+                        setShowUploadModal={setShowUploadModal}
+                        currentBook={currentBook}
+                        currentChapterIndex={currentChapterIndex}
+                    />
+                    
+                    <Sidebar 
+                        sidebarOpen={sidebarOpen}
+                        bibleData={bibleData}
+                        currentBookIndex={currentBookIndex}
+                        setCurrentBookIndex={setCurrentBookIndex}
+                        setCurrentChapterIndex={setCurrentChapterIndex}
+                        isMobile={isMobile}
+                        setSidebarOpen={setSidebarOpen}
+                    />
+
+                    <UploadModal 
+                        showUploadModal={showUploadModal}
+                        setShowUploadModal={setShowUploadModal}
+                        handleFileUpload={handleFileUpload}
+                    />
+
+                    <InfoModal 
+                        showInfoModal={showInfoModal}
+                        setShowInfoModal={setShowInfoModal}
+                    />
 
                     <main 
                         className={`
@@ -396,41 +447,55 @@
                             ${sidebarOpen ? 'ml-0 md:ml-64' : 'ml-0'}
                         `}
                     >
-                        {/* Book Title & Nav */}
                         <div className="max-w-4xl mx-auto">
-                             <ControlBar />
+                             <ControlBar 
+                                currentBook={currentBook}
+                                currentChapterIndex={currentChapterIndex}
+                                setCurrentChapterIndex={setCurrentChapterIndex}
+                                fontFamily={fontFamily}
+                                setFontFamily={setFontFamily}
+                                setFontSize={setFontSize}
+                             />
                             
                             <div className="px-6 py-8 sm:px-12 sm:py-12 bg-white min-h-[calc(100vh-8rem)] shadow-sm sm:mx-8 sm:my-8 sm:rounded-xl">
                                 
-                                {/* Chapter Header */}
-                                <div className="mb-8 text-center border-b border-gray-100 pb-6">
-                                    <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-                                        {currentBook?.book}
-                                    </h2>
-                                    <div className="text-lg text-gray-500 font-medium">Chapter {currentChapterIndex + 1}</div>
-                                </div>
-
-                                {/* Verses */}
-                                <div className="space-y-4 text-gray-800 leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
-                                    {currentChapterData.map((text, idx) => (
-                                        <div key={idx} className="relative pl-2 group hover:bg-gray-50 rounded px-2 -ml-2 transition-colors">
-                                            <span className="verse-num select-none">{idx + 1}</span>
-                                            <span className="text-content">{text}</span>
+                                {currentBook ? (
+                                    <>
+                                        {/* Chapter Header */}
+                                        <div className="mb-8 text-center border-b border-gray-100 pb-6">
+                                            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
+                                                {currentBook.book}
+                                            </h2>
+                                            <div className="text-lg text-gray-500 font-medium">Chapter {currentChapterIndex + 1}</div>
                                         </div>
-                                    ))}
 
-                                    {currentChapterData.length === 0 && (
-                                        <div className="text-center text-gray-400 py-12">
-                                            No content available for this chapter.
+                                        {/* Verses */}
+                                        <div className="space-y-4 text-gray-800 leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
+                                            {currentChapterData.map((text, idx) => (
+                                                <div key={idx} className="relative pl-2 group hover:bg-gray-50 rounded px-2 -ml-2 transition-colors">
+                                                    <span className="verse-num select-none">{idx + 1}</span>
+                                                    <span className="text-content">{text}</span>
+                                                </div>
+                                            ))}
+
+                                            {currentChapterData.length === 0 && (
+                                                <div className="text-center text-gray-400 py-12">
+                                                    No content available for this chapter.
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                </div>
+                                    </>
+                                ) : (
+                                    <div className="flex items-center justify-center h-64 text-gray-400">
+                                        Please upload a JSON file or check the format.
+                                    </div>
+                                )}
 
                                 {/* Bottom Navigation */}
                                 <div className="mt-12 pt-8 border-t border-gray-100 flex justify-between items-center">
                                     <button 
                                         onClick={() => navigateChapter('prev')}
-                                        disabled={currentBookIndex === 0 && currentChapterIndex === 0}
+                                        disabled={!currentBook || (currentBookIndex === 0 && currentChapterIndex === 0)}
                                         className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
                                     >
                                         <Icon name="chevron-left" size={16} />
@@ -439,7 +504,7 @@
 
                                     <button 
                                         onClick={() => navigateChapter('next')}
-                                        disabled={currentBookIndex === bibleData.length - 1 && currentChapterIndex === currentBook.chapters.length - 1}
+                                        disabled={!currentBook || (currentBookIndex === bibleData.length - 1 && currentChapterIndex === currentBook.chapters.length - 1)}
                                         className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
                                     >
                                         <span className="font-sans text-sm font-medium">Next</span>
