@@ -1,530 +1,250 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON Bible Reader - 66 Books</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <title>JSON Bible Reader</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap');
         
         body {
-            background-color: #f8f9fa;
+            font-family: 'Noto Serif TC', serif;
         }
-
-        /* Custom Scrollbar for Sidebar */
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+        .sidebar-scroll::-webkit-scrollbar {
+            width: 4px;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background-color: #e2e8f0;
-            border-radius: 20px;
-        }
-        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1;
-        }
-
-        .font-serif-custom {
-            font-family: 'Crimson Text', serif;
-        }
-        .font-sans-custom {
-            font-family: 'Inter', sans-serif;
-        }
-
-        .verse-num {
-            color: #94a3b8;
-            font-size: 0.75em;
-            vertical-align: super;
-            margin-right: 4px;
-            user-select: none;
-            font-weight: 600;
+        .reading-area {
+            max-height: calc(100vh - 120px);
         }
     </style>
 </head>
-<body>
-    <div id="root"></div>
+<body class="bg-slate-50 text-slate-900 overflow-hidden">
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-6 z-20 relative">
+        <div class="flex items-center gap-4">
+            <h1 id="translation-title" class="text-xl font-bold text-indigo-700">Bible Reader</h1>
+            <span id="current-location" class="text-slate-500 text-sm hidden md:inline-block"></span>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="relative group">
+                <input type="text" id="search-input" placeholder="搜尋經文..." class="bg-slate-100 border-none rounded-full px-4 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 w-48 transition-all duration-300 focus:w-64">
+                <button id="search-btn" class="absolute right-3 top-2 text-slate-400 hover:text-indigo-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                    </svg>
+                </button>
+            </div>
+            <label class="cursor-pointer bg-indigo-600 text-white px-4 py-1.5 rounded-full text-sm font-medium hover:bg-indigo-700 transition-colors">
+                開啟 JSON
+                <input type="file" id="json-upload" class="hidden" accept=".json">
+            </label>
+        </div>
+    </header>
 
-        // --- 66 BOOKS DATA GENERATION ---
-        
-        const BIBLE_BOOK_NAMES = [
-            // Old Testament
-            "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy", 
-            "Joshua", "Judges", "Ruth", "1 Samuel", "2 Samuel", 
-            "1 Kings", "2 Kings", "1 Chronicles", "2 Chronicles", "Ezra", 
-            "Nehemiah", "Esther", "Job", "Psalms", "Proverbs", 
-            "Ecclesiastes", "Song of Solomon", "Isaiah", "Jeremiah", "Lamentations", 
-            "Ezekiel", "Daniel", "Hosea", "Joel", "Amos", 
-            "Obadiah", "Jonah", "Micah", "Nahum", "Habakkuk", 
-            "Zephaniah", "Haggai", "Zechariah", "Malachi",
-            // New Testament
-            "Matthew", "Mark", "Luke", "John", "Acts", 
-            "Romans", "1 Corinthians", "2 Corinthians", "Galatians", "Ephesians", 
-            "Philippians", "Colossians", "1 Thessalonians", "2 Thessalonians", "1 Timothy", 
-            "2 Timothy", "Titus", "Philemon", "Hebrews", "James", 
-            "1 Peter", "2 Peter", "1 John", "2 John", "3 John", 
-            "Jude", "Revelation"
-        ];
+    <main class="flex h-screen pt-16 -mt-16">
+        <!-- Sidebar Navigation -->
+        <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 flex flex-col hidden">
+            <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">書卷目錄</h2>
+            </div>
+            <div id="books-list" class="flex-1 overflow-y-auto sidebar-scroll">
+                <!-- Books injected here -->
+            </div>
+        </aside>
 
-        // Generate the structure. 
-        // Note: For a single HTML file, we use placeholder text to avoid a 5MB file size.
-        // Real users would upload the full JSON via the upload button.
-        const GENERATE_DEMO_DATA = () => {
-            return BIBLE_BOOK_NAMES.map(name => {
-                // Create a few dummy chapters for each book
-                const chapters = [];
-                const chapterCount = name === "Psalms" ? 5 : 2; // Show structure variation
-                
-                for(let i = 1; i <= chapterCount; i++) {
-                    const verses = [
-                        `This is a placeholder for ${name} Chapter ${i}, Verse 1.`,
-                        `In a full version, the real scripture text would appear here.`,
-                        `Upload a JSON file containing the full text to replace this demo data.`,
-                        `But as you can see, the navigation for ${name} works perfectly.`
-                    ];
-                    // Add a specific real verse for Genesis 1:1 just for flavor
-                    if (name === "Genesis" && i === 1) {
-                         verses[0] = "In the beginning God created the heaven and the earth.";
-                         verses[1] = "And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters.";
-                    }
-                    chapters.push(verses);
-                }
-                return {
-                    book: name,
-                    chapters: chapters
-                };
-            });
-        };
+        <!-- Chapter Navigation (Second Column) -->
+        <aside id="chapter-sidebar" class="w-20 bg-slate-50 border-r border-slate-200 flex flex-col hidden">
+            <div class="p-4 border-b border-slate-200 text-center">
+                <h2 class="text-xs font-bold text-slate-400">章</h2>
+            </div>
+            <div id="chapters-list" class="flex-1 overflow-y-auto sidebar-scroll">
+                <!-- Chapters injected here -->
+            </div>
+        </aside>
 
-        const DEMO_BIBLE_DATA = GENERATE_DEMO_DATA();
-
-        // --- Shared Icon Component ---
-        const Icon = ({ name, size = 20, className = "" }) => {
-             const icons = {
-                 'book': 'fa-book',
-                 'upload': 'fa-upload',
-                 'chevron-left': 'fa-chevron-left',
-                 'chevron-right': 'fa-chevron-right',
-                 'settings': 'fa-cog',
-                 'menu': 'fa-bars',
-                 'x': 'fa-times',
-                 'search': 'fa-search',
-                 'info': 'fa-info-circle'
-             };
-             return <i className={`fas ${icons[name] || 'fa-question'} ${className}`} style={{fontSize: size}}></i>;
-        };
-
-        // --- Sub-Components ---
-
-        const Header = ({ sidebarOpen, setSidebarOpen, setShowInfoModal, setShowUploadModal, currentBook, currentChapterIndex }) => (
-            <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 fixed top-0 w-full z-20 shadow-sm">
-                <div className="flex items-center gap-4">
-                    <button 
-                        onClick={() => setSidebarOpen(!sidebarOpen)}
-                        className="p-2 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
-                    >
-                        <Icon name={sidebarOpen ? "x" : "menu"} />
-                    </button>
-                    <h1 className="text-xl font-bold text-gray-800 hidden sm:block">
-                        Bible Reader
-                    </h1>
-                    <h1 className="text-lg font-semibold text-gray-800 sm:hidden truncate max-w-[150px]">
-                        {currentBook ? `${currentBook.book} ${currentChapterIndex + 1}` : 'Bible Reader'}
-                    </h1>
+        <!-- Main Content -->
+        <section class="flex-1 overflow-y-auto reading-area p-8 md:p-12 scroll-smooth" id="content-display">
+            <div id="welcome-screen" class="max-w-2xl mx-auto text-center mt-20">
+                <div class="bg-indigo-50 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="text-indigo-600 h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
                 </div>
+                <h2 class="text-3xl font-bold text-slate-800 mb-4">歡迎使用聖經閱讀器</h2>
+                <p class="text-slate-600 leading-relaxed mb-8">請點擊右上方的「開啟 JSON」按鈕，並選擇您的 <strong>ChiUn.json</strong> 檔案開始閱讀。</p>
+            </div>
 
-                <div className="flex items-center gap-2">
-                     <button 
-                        onClick={() => setShowInfoModal(true)}
-                        className="p-2 hover:bg-gray-100 rounded-full text-gray-600"
-                        title="Format Info"
-                    >
-                        <Icon name="info" />
-                    </button>
-                    <button 
-                        onClick={() => setShowUploadModal(true)}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                    >
-                        <Icon name="upload" size={14} />
-                        <span className="hidden sm:inline">Open JSON</span>
-                    </button>
-                </div>
-            </header>
-        );
-
-        const Sidebar = ({ sidebarOpen, bibleData, currentBookIndex, setCurrentBookIndex, setCurrentChapterIndex, isMobile, setSidebarOpen }) => {
-            // Ref for scrolling to active book
-            const activeBookRef = useRef(null);
-
-            useEffect(() => {
-                if (sidebarOpen && activeBookRef.current) {
-                    activeBookRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, [currentBookIndex, sidebarOpen]);
-
-            return (
-                <aside 
-                    className={`
-                        fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-gray-200 z-10 
-                        transform transition-transform duration-300 ease-in-out overflow-y-auto custom-scrollbar
-                        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-                    `}
-                >
-                    <div className="p-4">
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">Books ({bibleData.length})</div>
-                        <div className="space-y-1 pb-16">
-                            {bibleData.map((book, idx) => (
-                                <button
-                                    key={idx}
-                                    ref={currentBookIndex === idx ? activeBookRef : null}
-                                    onClick={() => {
-                                        setCurrentBookIndex(idx);
-                                        setCurrentChapterIndex(0);
-                                        if (isMobile) setSidebarOpen(false);
-                                    }}
-                                    className={`
-                                        w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors
-                                        ${currentBookIndex === idx 
-                                            ? 'bg-blue-50 text-blue-700' 
-                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
-                                    `}
-                                >
-                                    {book.book}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </aside>
-            );
-        };
-
-        const ControlBar = ({ currentBook, currentChapterIndex, setCurrentChapterIndex, fontFamily, setFontFamily, setFontSize }) => (
-            <div className="sticky top-16 bg-white/95 backdrop-blur-sm border-b border-gray-100 py-3 px-4 sm:px-8 flex flex-wrap items-center justify-between gap-4 z-10">
-                <div className="flex items-center gap-2">
-                     <div className="relative group">
-                        <span className="text-sm text-gray-500 font-medium mr-2">Chapter:</span>
-                        <select 
-                            value={currentChapterIndex} 
-                            onChange={(e) => setCurrentChapterIndex(Number(e.target.value))}
-                            className="bg-gray-50 border border-gray-200 text-gray-800 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block p-1.5 px-3 pr-8 appearance-none cursor-pointer hover:bg-gray-100"
-                            disabled={!currentBook}
-                        >
-                            {currentBook?.chapters.map((_, idx) => (
-                                <option key={idx} value={idx}>{idx + 1}</option>
-                            )) || <option value={0}>-</option>}
-                        </select>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                     <div className="flex bg-gray-100 rounded-lg p-1">
-                        <button 
-                            onClick={() => setFontFamily('serif')}
-                            className={`px-2 py-1 rounded-md text-xs font-serif ${fontFamily === 'serif' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
-                        >
-                            Aa
-                        </button>
-                        <button 
-                            onClick={() => setFontFamily('sans')}
-                            className={`px-2 py-1 rounded-md text-xs font-sans ${fontFamily === 'sans' ? 'bg-white shadow-sm text-black' : 'text-gray-500'}`}
-                        >
-                            Aa
-                        </button>
-                    </div>
-
-                    <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-                        <button 
-                            onClick={() => setFontSize(s => Math.max(12, s - 2))}
-                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white hover:shadow-sm text-gray-600 transition-all"
-                        >
-                            <span className="text-xs">A-</span>
-                        </button>
-                        <button 
-                            onClick={() => setFontSize(s => Math.min(32, s + 2))}
-                            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-white hover:shadow-sm text-gray-600 transition-all"
-                        >
-                            <span className="text-base">A+</span>
-                        </button>
-                    </div>
+            <!-- Reading Content Wrapper -->
+            <div id="bible-content" class="max-w-3xl mx-auto hidden">
+                <h2 id="view-book-name" class="text-4xl font-bold mb-2"></h2>
+                <h3 id="view-chapter-num" class="text-xl text-slate-400 mb-8 pb-4 border-b border-slate-100"></h3>
+                <div id="verses-container" class="space-y-6 text-xl leading-loose tracking-wide">
+                    <!-- Verses injected here -->
                 </div>
             </div>
-        );
 
-        const UploadModal = ({ showUploadModal, setShowUploadModal, handleFileUpload }) => {
-            if (!showUploadModal) return null;
-            return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-fade-in">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-gray-900">Open Bible JSON</h3>
-                            <button onClick={() => setShowUploadModal(false)} className="text-gray-400 hover:text-gray-600">
-                                <Icon name="x" />
-                            </button>
-                        </div>
-                        
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-colors cursor-pointer relative">
-                            <input 
-                                type="file" 
-                                accept=".json"
-                                onChange={handleFileUpload}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            />
-                            <div className="text-blue-500 mb-2">
-                                <Icon name="upload" size={32} />
-                            </div>
-                            <p className="text-sm text-gray-600 font-medium">Click to upload or drag and drop</p>
-                            <p className="text-xs text-gray-400 mt-1">.json files only</p>
-                        </div>
-
-                        <div className="mt-4 text-xs text-gray-500 bg-gray-50 p-3 rounded-md">
-                            <strong>Tip:</strong> The file must follow the specific array structure shown in the info menu.
-                        </div>
-                    </div>
+            <!-- Search Results Wrapper -->
+            <div id="search-results" class="max-w-3xl mx-auto hidden">
+                <h2 class="text-2xl font-bold mb-6">搜尋結果</h2>
+                <div id="results-container" class="space-y-4">
+                    <!-- Results injected here -->
                 </div>
-            );
-        };
+            </div>
+        </section>
+    </main>
 
-        const InfoModal = ({ showInfoModal, setShowInfoModal }) => {
-            if (!showInfoModal) return null;
-            return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 overflow-y-auto max-h-[80vh]">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-gray-900">Expected JSON Format</h3>
-                            <button onClick={() => setShowInfoModal(false)} className="text-gray-400 hover:text-gray-600">
-                                <Icon name="x" />
-                            </button>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-4">
-                            To use your own Bible data, your JSON file must look exactly like this:
-                        </p>
-                        <div className="bg-gray-800 text-gray-100 p-4 rounded-lg text-xs font-mono overflow-x-auto">
-<pre>{`[
-  {
-    "book": "Genesis",
-    "chapters": [
-      [
-        "In the beginning...",
-        "And the earth was without form..."
-      ],
-      [
-        "Chapter 2 verse 1 text...",
-        "Chapter 2 verse 2 text..."
-      ]
-    ]
-  },
-  {
-    "book": "Exodus",
-    "chapters": [...]
-  }
-]`}</pre>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
+    <script>
+        let bibleData = null;
+        let activeBookIdx = 0;
+        let activeChapterIdx = 0;
 
-        // --- Main App Component ---
-        const App = () => {
-            // State
-            const [bibleData, setBibleData] = useState(DEMO_BIBLE_DATA);
-            const [currentBookIndex, setCurrentBookIndex] = useState(0);
-            const [currentChapterIndex, setCurrentChapterIndex] = useState(0);
-            const [sidebarOpen, setSidebarOpen] = useState(true); // Desktop default
-            const [fontSize, setFontSize] = useState(18);
-            const [fontFamily, setFontFamily] = useState('serif'); // 'serif' or 'sans'
-            const [showUploadModal, setShowUploadModal] = useState(false);
-            const [showInfoModal, setShowInfoModal] = useState(false);
-            const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+        const upload = document.getElementById('json-upload');
+        const sidebar = document.getElementById('sidebar');
+        const chapSidebar = document.getElementById('chapter-sidebar');
+        const booksList = document.getElementById('books-list');
+        const chaptersList = document.getElementById('chapters-list');
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const bibleContent = document.getElementById('bible-content');
+        const versesContainer = document.getElementById('verses-container');
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+        const resultsContainer = document.getElementById('results-container');
 
-            // Responsive check
-            useEffect(() => {
-                const handleResize = () => {
-                    const mobile = window.innerWidth < 768;
-                    setIsMobile(mobile);
-                    if (mobile) setSidebarOpen(false);
-                    else setSidebarOpen(true);
-                };
-                window.addEventListener('resize', handleResize);
-                handleResize(); // Init
-                return () => window.removeEventListener('resize', handleResize);
-            }, []);
+        upload.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-            const currentBook = bibleData[currentBookIndex];
-            const currentChapterData = currentBook?.chapters[currentChapterIndex] || [];
-
-            // Handlers
-            const handleFileUpload = (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const json = JSON.parse(e.target.result);
-                        if (Array.isArray(json) && json[0].book && json[0].chapters) {
-                            setBibleData(json);
-                            setCurrentBookIndex(0);
-                            setCurrentChapterIndex(0);
-                            setShowUploadModal(false);
-                        } else {
-                            alert("Invalid JSON format. Please check the Info button for the required format.");
-                        }
-                    } catch (error) {
-                        alert("Error parsing JSON file: " + error.message);
-                    }
-                };
-                reader.readAsText(file);
-            };
-
-            const navigateChapter = (direction) => {
-                if (!currentBook) return;
-
-                if (direction === 'next') {
-                    if (currentChapterIndex < currentBook.chapters.length - 1) {
-                        setCurrentChapterIndex(prev => prev + 1);
-                    } else if (currentBookIndex < bibleData.length - 1) {
-                        setCurrentBookIndex(prev => prev + 1);
-                        setCurrentChapterIndex(0);
-                    }
-                } else {
-                    if (currentChapterIndex > 0) {
-                        setCurrentChapterIndex(prev => prev - 1);
-                    } else if (currentBookIndex > 0) {
-                        setCurrentBookIndex(prev => prev - 1);
-                        setCurrentChapterIndex(bibleData[currentBookIndex - 1].chapters.length - 1);
-                    }
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    bibleData = JSON.parse(event.target.result);
+                    initApp();
+                } catch (err) {
+                    alert('無法解析 JSON 檔案。請確保格式正確。');
                 }
-                // Scroll to top
-                window.scrollTo({ top: 0, behavior: 'smooth' });
             };
+            reader.readAsText(file);
+        });
 
-            // Main Render
-            return (
-                <div className={`min-h-screen pt-16 ${fontFamily === 'serif' ? 'font-serif-custom' : 'font-sans-custom'}`}>
-                    <Header 
-                        sidebarOpen={sidebarOpen} 
-                        setSidebarOpen={setSidebarOpen} 
-                        setShowInfoModal={setShowInfoModal} 
-                        setShowUploadModal={setShowUploadModal}
-                        currentBook={currentBook}
-                        currentChapterIndex={currentChapterIndex}
-                    />
-                    
-                    <Sidebar 
-                        sidebarOpen={sidebarOpen}
-                        bibleData={bibleData}
-                        currentBookIndex={currentBookIndex}
-                        setCurrentBookIndex={setCurrentBookIndex}
-                        setCurrentChapterIndex={setCurrentChapterIndex}
-                        isMobile={isMobile}
-                        setSidebarOpen={setSidebarOpen}
-                    />
+        function initApp() {
+            document.getElementById('translation-title').textContent = bibleData.translation || "聖經閱讀器";
+            sidebar.classList.remove('hidden');
+            chapSidebar.classList.remove('hidden');
+            welcomeScreen.classList.add('hidden');
+            renderBooks();
+            loadChapter(0, 0);
+        }
 
-                    <UploadModal 
-                        showUploadModal={showUploadModal}
-                        setShowUploadModal={setShowUploadModal}
-                        handleFileUpload={handleFileUpload}
-                    />
+        function renderBooks() {
+            booksList.innerHTML = '';
+            bibleData.books.forEach((book, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left px-4 py-3 text-sm transition-all border-l-4 ${activeBookIdx === idx ? 'bg-indigo-50 border-indigo-600 text-indigo-700 font-bold' : 'border-transparent text-slate-600 hover:bg-slate-50'}`;
+                btn.textContent = book.name;
+                btn.onclick = () => selectBook(idx);
+                booksList.appendChild(btn);
+            });
+        }
 
-                    <InfoModal 
-                        showInfoModal={showInfoModal}
-                        setShowInfoModal={setShowInfoModal}
-                    />
+        function selectBook(idx) {
+            activeBookIdx = idx;
+            activeChapterIdx = 0;
+            renderBooks();
+            renderChapters();
+            loadChapter(activeBookIdx, activeChapterIdx);
+        }
 
-                    <main 
-                        className={`
-                            transition-all duration-300 ease-in-out
-                            ${sidebarOpen ? 'ml-0 md:ml-64' : 'ml-0'}
-                        `}
-                    >
-                        <div className="max-w-4xl mx-auto">
-                             <ControlBar 
-                                currentBook={currentBook}
-                                currentChapterIndex={currentChapterIndex}
-                                setCurrentChapterIndex={setCurrentChapterIndex}
-                                fontFamily={fontFamily}
-                                setFontFamily={setFontFamily}
-                                setFontSize={setFontSize}
-                             />
-                            
-                            <div className="px-6 py-8 sm:px-12 sm:py-12 bg-white min-h-[calc(100vh-8rem)] shadow-sm sm:mx-8 sm:my-8 sm:rounded-xl">
-                                
-                                {currentBook ? (
-                                    <>
-                                        {/* Chapter Header */}
-                                        <div className="mb-8 text-center border-b border-gray-100 pb-6">
-                                            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-                                                {currentBook.book}
-                                            </h2>
-                                            <div className="text-lg text-gray-500 font-medium">Chapter {currentChapterIndex + 1}</div>
-                                        </div>
+        function renderChapters() {
+            chaptersList.innerHTML = '';
+            const book = bibleData.books[activeBookIdx];
+            book.chapters.forEach((chap, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `w-full py-3 text-sm transition-all ${activeChapterIdx === idx ? 'bg-indigo-600 text-white font-bold' : 'text-slate-500 hover:bg-slate-200'}`;
+                btn.textContent = chap.chapter;
+                btn.onclick = () => {
+                    activeChapterIdx = idx;
+                    renderChapters();
+                    loadChapter(activeBookIdx, activeChapterIdx);
+                };
+                chaptersList.appendChild(btn);
+            });
+        }
 
-                                        {/* Verses */}
-                                        <div className="space-y-4 text-gray-800 leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
-                                            {currentChapterData.map((text, idx) => (
-                                                <div key={idx} className="relative pl-2 group hover:bg-gray-50 rounded px-2 -ml-2 transition-colors">
-                                                    <span className="verse-num select-none">{idx + 1}</span>
-                                                    <span className="text-content">{text}</span>
-                                                </div>
-                                            ))}
+        function loadChapter(bookIdx, chapIdx) {
+            const book = bibleData.books[bookIdx];
+            const chapter = book.chapters[chapIdx];
+            
+            searchResults.classList.add('hidden');
+            bibleContent.classList.remove('hidden');
+            
+            document.getElementById('view-book-name').textContent = book.name;
+            document.getElementById('view-chapter-num').textContent = `第 ${chapter.chapter} 章`;
+            document.getElementById('current-location').textContent = `${book.name} 第 ${chapter.chapter} 章`;
+            
+            versesContainer.innerHTML = '';
+            chapter.verses.forEach(v => {
+                const p = document.createElement('p');
+                p.className = "flex gap-4 group";
+                p.innerHTML = `
+                    <span class="text-indigo-400 text-sm font-bold min-w-[2rem] pt-1.5 select-none">${v.verse}</span>
+                    <span class="flex-1">${v.text}</span>
+                `;
+                versesContainer.appendChild(p);
+            });
+            
+            if (chaptersList.children.length === 0) renderChapters();
+            document.getElementById('content-display').scrollTop = 0;
+        }
 
-                                            {currentChapterData.length === 0 && (
-                                                <div className="text-center text-gray-400 py-12">
-                                                    No content available for this chapter.
-                                                </div>
-                                            )}
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="flex items-center justify-center h-64 text-gray-400">
-                                        Please upload a JSON file or check the format.
-                                    </div>
-                                )}
+        // Search logic
+        function performSearch() {
+            const query = searchInput.value.trim();
+            if (!query || !bibleData) return;
 
-                                {/* Bottom Navigation */}
-                                <div className="mt-12 pt-8 border-t border-gray-100 flex justify-between items-center">
-                                    <button 
-                                        onClick={() => navigateChapter('prev')}
-                                        disabled={!currentBook || (currentBookIndex === 0 && currentChapterIndex === 0)}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                                    >
-                                        <Icon name="chevron-left" size={16} />
-                                        <span className="font-sans text-sm font-medium">Previous</span>
-                                    </button>
+            bibleContent.classList.add('hidden');
+            searchResults.classList.remove('hidden');
+            resultsContainer.innerHTML = '';
 
-                                    <button 
-                                        onClick={() => navigateChapter('next')}
-                                        disabled={!currentBook || (currentBookIndex === bibleData.length - 1 && currentChapterIndex === currentBook.chapters.length - 1)}
-                                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-                                    >
-                                        <span className="font-sans text-sm font-medium">Next</span>
-                                        <Icon name="chevron-right" size={16} />
-                                    </button>
-                                </div>
+            let matches = 0;
+            bibleData.books.forEach((book, bIdx) => {
+                book.chapters.forEach((chap, cIdx) => {
+                    chap.verses.forEach(v => {
+                        if (v.text.includes(query)) {
+                            matches++;
+                            const div = document.createElement('div');
+                            div.className = "p-4 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-indigo-300 transition-all cursor-pointer";
+                            div.innerHTML = `
+                                <div class="text-xs font-bold text-indigo-600 mb-1">${book.name} ${chap.chapter}:${v.verse}</div>
+                                <div class="text-slate-700">${v.text.replace(query, `<mark class="bg-yellow-200">${query}</mark>`)}</div>
+                            `;
+                            div.onclick = () => {
+                                activeBookIdx = bIdx;
+                                activeChapterIdx = cIdx;
+                                renderBooks();
+                                renderChapters();
+                                loadChapter(bIdx, cIdx);
+                            };
+                            resultsContainer.appendChild(div);
+                        }
+                    });
+                });
+            });
 
-                            </div>
-                            
-                            <footer className="text-center py-8 text-gray-400 text-sm font-sans">
-                                Bible Reader App &copy; 2026
-                            </footer>
-                        </div>
-                    </main>
-                </div>
-            );
-        };
+            if (matches === 0) {
+                resultsContainer.innerHTML = `<p class="text-slate-500 italic">找不到與 "${query}" 相關的經文。</p>`;
+            }
+        }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+        document.getElementById('search-btn').onclick = performSearch;
     </script>
 </body>
 </html>
