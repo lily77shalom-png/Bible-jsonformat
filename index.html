@@ -1,373 +1,502 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON 專業檢視器 Pro</title>
+    <title>JSON Visualizer Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;600&display=swap');
-        
-        :root {
-            --key-color: #881391;
-            --string-color: #059669;
-            --number-color: #2563eb;
-            --bool-color: #d97706;
-            --null-color: #64748b;
-            --bg-color: #f1f5f9;
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --border-color: #e2e8f0;
-        }
-
-        .dark-mode {
-            --key-color: #d8b4fe;
-            --string-color: #4ade80;
-            --number-color: #60a5fa;
-            --bool-color: #fbbf24;
-            --null-color: #94a3b8;
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-main: #f1f5f9;
-            --border-color: #334155;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
             font-family: 'Inter', sans-serif;
-            transition: background-color 0.3s, color 0.3s;
+            background-color: #0f172a; /* Slate 900 */
+            color: #e2e8f0;
         }
 
-        .json-tree-container {
-            font-family: 'Fira Code', monospace;
+        .json-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+
+        /* JSON Tree Styling */
+        .json-tree {
             line-height: 1.6;
+            font-size: 14px;
+        }
+        
+        .json-node {
+            position: relative;
+            padding-left: 20px;
         }
 
-        .json-item {
-            margin-left: 24px;
-            border-left: 1px dashed var(--border-color);
-            padding-left: 12px;
+        .json-key {
+            color: #9cdcfe; /* Light Blue */
+            margin-right: 4px;
+        }
+        
+        .json-string {
+            color: #ce9178; /* Orange/Red */
+        }
+        
+        .json-number {
+            color: #b5cea8; /* Light Green */
+        }
+        
+        .json-boolean {
+            color: #569cd6; /* Blue */
+        }
+        
+        .json-null {
+            color: #569cd6;
         }
 
-        .toggle-icon {
+        .json-bracket {
+            color: #ffd700; /* Gold */
+            font-weight: bold;
+        }
+
+        .collapsible-marker {
+            position: absolute;
+            left: 2px;
+            top: 6px;
+            width: 0; 
+            height: 0; 
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #94a3b8;
             cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 18px;
-            height: 18px;
-            background: var(--border-color);
-            border-radius: 4px;
-            margin-right: 8px;
-            font-size: 12px;
-            user-select: none;
-            transition: all 0.2s;
-            vertical-align: middle;
+            transition: transform 0.2s;
         }
 
-        .collapsed > .json-item, .collapsed > .bracket-close {
+        .collapsed .collapsible-marker {
+            transform: rotate(-90deg);
+        }
+
+        .collapsed > .json-children {
             display: none;
         }
 
-        .collapsed > .toggle-icon::before { content: '+'; }
-        .expanded > .toggle-icon::before { content: '-'; }
-
-        .json-key { color: var(--key-color); cursor: pointer; }
-        .json-key:hover { text-decoration: underline; }
-        .json-string { color: var(--string-color); }
-        .json-number { color: var(--number-color); }
-        .json-boolean { color: var(--bool-color); }
-        .json-null { color: var(--null-color); }
-
-        .item-count {
-            font-size: 11px;
-            color: #94a3b8;
-            margin-left: 8px;
-            font-style: italic;
+        .json-children {
+            border-left: 1px solid #334155;
+            margin-left: 4px;
+            padding-left: 10px;
         }
 
-        .search-highlight {
-            background-color: #fef08a;
-            color: #000;
-            border-radius: 2px;
-            box-shadow: 0 0 0 2px #fde047;
-        }
-
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
+        .hover-row:hover {
+            background-color: rgba(255, 255, 255, 0.05);
             border-radius: 4px;
         }
-        .dark-mode .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
 
-        .card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
         }
     </style>
 </head>
-<body class="min-h-screen">
-    <div class="flex flex-col h-screen">
-        <!-- 頂部導覽列 -->
-        <header class="card border-b px-6 py-4 flex items-center justify-between shadow-sm z-20">
-            <div class="flex items-center gap-3">
-                <div class="bg-indigo-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold">JSON Pro Viewer</h1>
-                    <p id="fileInfo" class="text-xs opacity-60">Ready to analyze</p>
-                </div>
-            </div>
+<body class="h-screen flex flex-col overflow-hidden">
 
-            <div class="flex items-center gap-3">
-                <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="切換主題">
-                    <svg id="sunIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"></path></svg>
-                    <svg id="moonIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-                </button>
-                <input type="file" id="fileInput" accept=".json" class="hidden">
-                <button onclick="document.getElementById('fileInput').click()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all shadow-md">
-                    開啟檔案
-                </button>
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700 p-4 shadow-lg z-10 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg text-white">
+                <i class="fa-solid fa-code-branch text-xl"></i>
             </div>
-        </header>
-
-        <!-- 工具列 -->
-        <div id="toolbar" class="bg-opacity-50 backdrop-blur-md card border-b px-6 py-2 flex flex-wrap items-center gap-4 hidden">
-            <div class="relative flex-grow max-w-md">
-                <input type="text" id="searchInput" placeholder="搜尋鍵值或內容..." class="pl-4 pr-10 py-1.5 w-full bg-transparent border border-gray-300 dark:border-gray-600 rounded-full text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                <span id="searchCount" class="absolute right-4 inset-y-0 flex items-center text-xs opacity-50"></span>
-            </div>
-
-            <div class="flex items-center gap-1 border-x px-4 border-gray-300 dark:border-gray-600">
-                <button id="expandAll" class="text-xs hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-1.5 rounded transition">全部展開</button>
-                <button id="collapseAll" class="text-xs hover:bg-gray-200 dark:hover:bg-gray-700 px-3 py-1.5 rounded transition">全部摺疊</button>
-            </div>
-
-            <div class="flex items-center gap-2 ml-auto">
-                <button id="copyBtn" class="text-xs px-3 py-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">複製 JSON</button>
-                <button id="downloadBtn" class="text-xs text-indigo-500 font-bold px-3 py-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">下載</button>
-                <button id="clearBtn" class="text-xs text-red-500 px-3 py-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition">清除</button>
-            </div>
+            <h1 class="text-xl font-bold tracking-tight text-white">JSON Viewer</h1>
         </div>
 
-        <!-- 主內容區 -->
-        <main class="flex-grow overflow-hidden relative">
-            <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
-                <div class="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-6">
-                    <svg class="w-10 h-10 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+        <div class="flex items-center gap-3 w-full md:w-auto">
+            <!-- Search Bar -->
+            <div class="relative w-full md:w-64">
+                <input type="text" id="searchInput" placeholder="Search keys or values..." 
+                    class="w-full bg-slate-700 border border-slate-600 text-slate-200 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block pl-10 p-2 outline-none">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <i class="fa-solid fa-search text-slate-400"></i>
                 </div>
-                <h2 class="text-2xl font-bold mb-2">拖放 JSON 到這裡</h2>
-                <p class="opacity-50 text-sm">支援大檔案預覽與結構化搜尋</p>
             </div>
 
-            <div id="viewer" class="h-full overflow-auto p-8 custom-scrollbar hidden">
-                <div id="jsonTree" class="json-tree-container text-[13px]"></div>
-            </div>
+            <button id="collapseAllBtn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-lg text-sm transition font-medium border border-slate-600">
+                <i class="fa-solid fa-compress-arrows-alt mr-1"></i> Collapse
+            </button>
+            <button id="expandAllBtn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-lg text-sm transition font-medium border border-slate-600">
+                <i class="fa-solid fa-expand-arrows-alt mr-1"></i> Expand
+            </button>
+        </div>
+    </header>
 
-            <!-- Toast 提示 -->
-            <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm shadow-2xl transition-all opacity-0 pointer-events-none z-50">
-                路徑已複製
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden relative">
+        
+        <!-- Drop Zone / Empty State -->
+        <div id="dropZone" class="absolute inset-0 z-0 flex flex-col items-center justify-center bg-slate-900 transition-all duration-300">
+            <div class="text-center p-10 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-800/50 hover:bg-slate-800 hover:border-blue-500 transition-colors cursor-pointer group w-3/4 max-w-2xl" id="clickUploadArea">
+                <div class="bg-slate-700 p-4 rounded-full inline-block mb-4 group-hover:bg-blue-600/20 group-hover:text-blue-400 transition">
+                    <i class="fa-solid fa-file-arrow-up text-4xl text-slate-400 group-hover:text-blue-400"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-200 mb-2">Drop JSON file here</h2>
+                <p class="text-slate-400 mb-6">or click to browse from your computer</p>
+                
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-slate-600"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-slate-800/50 text-slate-500">OR PASTE TEXT</span>
+                    </div>
+                </div>
+
+                <textarea id="pasteArea" class="mt-6 w-full h-32 bg-slate-900 border border-slate-600 rounded-lg p-3 text-sm font-mono text-slate-300 focus:ring-2 focus:ring-blue-500 outline-none resize-none" placeholder='{"key": "value"}'></textarea>
+                
+                <button id="visualizeBtn" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition w-full shadow-lg shadow-blue-900/20">
+                    Visualize JSON
+                </button>
+                
+                <input type="file" id="fileInput" class="hidden" accept=".json,application/json">
             </div>
-        </main>
-    </div>
+            <p id="errorMsg" class="mt-4 text-red-400 hidden bg-red-900/20 px-4 py-2 rounded-lg border border-red-800"></p>
+        </div>
+
+        <!-- Viewer Container -->
+        <div id="viewerContainer" class="hidden relative w-full h-full flex flex-col bg-slate-900 z-10">
+            <div class="bg-slate-800/80 backdrop-blur border-b border-slate-700 px-4 py-2 flex justify-between items-center text-xs text-slate-400">
+                <span id="fileNameDisplay">data.json</span>
+                <span id="nodeCount">0 nodes</span>
+                <button id="resetBtn" class="text-blue-400 hover:text-blue-300 font-medium">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> Open New File
+                </button>
+            </div>
+            
+            <div id="jsonOutput" class="flex-1 overflow-auto p-4 md:p-8 json-font text-sm"></div>
+            
+            <!-- Floating Action Button -->
+            <button id="copyBtn" class="absolute bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-full shadow-xl shadow-blue-900/40 transition transform hover:scale-105" title="Copy Raw JSON">
+                <i class="fa-solid fa-copy"></i>
+            </button>
+        </div>
+
+    </main>
 
     <script>
+        // DOM Elements
+        const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
-        const emptyState = document.getElementById('emptyState');
-        const viewer = document.getElementById('viewer');
-        const toolbar = document.getElementById('toolbar');
-        const jsonTree = document.getElementById('jsonTree');
-        const fileInfo = document.getElementById('fileInfo');
+        const clickUploadArea = document.getElementById('clickUploadArea');
+        const pasteArea = document.getElementById('pasteArea');
+        const visualizeBtn = document.getElementById('visualizeBtn');
+        const errorMsg = document.getElementById('errorMsg');
+        const viewerContainer = document.getElementById('viewerContainer');
+        const jsonOutput = document.getElementById('jsonOutput');
+        const resetBtn = document.getElementById('resetBtn');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const nodeCountDisplay = document.getElementById('nodeCount');
+        const collapseAllBtn = document.getElementById('collapseAllBtn');
+        const expandAllBtn = document.getElementById('expandAllBtn');
         const searchInput = document.getElementById('searchInput');
-        const searchCount = document.getElementById('searchCount');
-        const themeToggle = document.getElementById('themeToggle');
-        const toast = document.getElementById('toast');
+        const copyBtn = document.getElementById('copyBtn');
 
-        let currentData = null;
-        let isDarkMode = false;
+        let currentJSON = null;
 
-        // 主題切換
-        themeToggle.onclick = () => {
-            isDarkMode = !isDarkMode;
-            document.body.classList.toggle('dark-mode', isDarkMode);
-            document.getElementById('sunIcon').classList.toggle('hidden', !isDarkMode);
-            document.getElementById('moonIcon').classList.toggle('hidden', isDarkMode);
-        };
+        // --- Event Listeners ---
 
-        // 監聽文件
-        fileInput.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
-        document.body.ondragover = e => { e.preventDefault(); document.body.style.opacity = '0.7'; };
-        document.body.ondragleave = () => { document.body.style.opacity = '1'; };
-        document.body.ondrop = e => {
+        // File Input Trigger
+        clickUploadArea.addEventListener('click', (e) => {
+            if (e.target !== pasteArea && e.target !== visualizeBtn) {
+                fileInput.click();
+            }
+        });
+
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag & Drop
+        window.addEventListener('dragover', (e) => {
             e.preventDefault();
-            document.body.style.opacity = '1';
-            if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-        };
+            dropZone.classList.add('bg-slate-800');
+        });
 
-        function handleFile(file) {
-            const reader = new FileReader();
-            reader.onload = e => {
+        window.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('bg-slate-800');
+        });
+
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('bg-slate-800');
+            if (e.dataTransfer.files.length) {
+                processFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Paste Area Button
+        visualizeBtn.addEventListener('click', () => {
+            const text = pasteArea.value.trim();
+            if (text) {
                 try {
-                    const data = JSON.parse(e.target.result);
-                    renderApp(data, file.name, file.size);
+                    const json = JSON.parse(text);
+                    loadJSON(json, "Pasted Text");
                 } catch (err) {
-                    alert("JSON 解析錯誤: " + err.message);
+                    showError("Invalid JSON text. Please check syntax.");
+                }
+            }
+        });
+
+        // Reset
+        resetBtn.addEventListener('click', () => {
+            viewerContainer.classList.add('hidden');
+            dropZone.classList.remove('hidden');
+            pasteArea.value = '';
+            errorMsg.classList.add('hidden');
+            currentJSON = null;
+        });
+
+        // Toolbar
+        collapseAllBtn.addEventListener('click', () => toggleAll(false));
+        expandAllBtn.addEventListener('click', () => toggleAll(true));
+
+        // Copy
+        copyBtn.addEventListener('click', () => {
+            if (currentJSON) {
+                const text = JSON.stringify(currentJSON, null, 2);
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalIcon = copyBtn.innerHTML;
+                    copyBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                    setTimeout(() => copyBtn.innerHTML = originalIcon, 2000);
+                });
+            }
+        });
+
+        // Search
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const term = e.target.value.toLowerCase();
+                filterJSON(term);
+            }, 300);
+        });
+
+        // --- Core Functions ---
+
+        function handleFileSelect(e) {
+            if (e.target.files.length) {
+                processFile(e.target.files[0]);
+            }
+        }
+
+        function processFile(file) {
+            if (file.type !== "application/json" && !file.name.endsWith('.json')) {
+                showError("Please upload a valid .json file");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    loadJSON(json, file.name);
+                } catch (err) {
+                    showError("Error parsing JSON: " + err.message);
                 }
             };
             reader.readAsText(file);
         }
 
-        function renderApp(data, name, size) {
-            currentData = data;
-            fileInfo.textContent = `${name} • ${(size / 1024).toFixed(1)} KB`;
-            emptyState.classList.add('hidden');
-            viewer.classList.remove('hidden');
-            toolbar.classList.remove('hidden');
-            jsonTree.innerHTML = '';
-            jsonTree.appendChild(createTreeNode(data, '', true, null));
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.remove('hidden');
         }
 
-        function createTreeNode(val, path, isLast, label = null) {
+        function loadJSON(json, name) {
+            currentJSON = json;
+            fileNameDisplay.textContent = name;
+            errorMsg.classList.add('hidden');
+            dropZone.classList.add('hidden');
+            viewerContainer.classList.remove('hidden');
+            viewerContainer.classList.add('fade-in');
+            
+            // Render Tree
+            jsonOutput.innerHTML = '';
+            const tree = createTree(json);
+            jsonOutput.appendChild(tree);
+            
+            // Count nodes roughly
+            const count = JSON.stringify(json).split(':').length;
+            nodeCountDisplay.textContent = `~${count} properties`;
+        }
+
+        // --- Recursive Tree Generation ---
+
+        function createTree(data, key = null) {
+            const type = getDataType(data);
             const container = document.createElement('div');
-            container.className = 'json-node expanded';
+            container.className = 'json-node hover-row';
 
-            const isObject = val !== null && typeof val === 'object';
-            const isArray = Array.isArray(val);
-            const currentPath = path;
-
-            const line = document.createElement('div');
-            line.className = 'flex items-baseline';
-
-            if (isObject) {
-                const toggle = document.createElement('span');
-                toggle.className = 'toggle-icon';
-                toggle.onclick = () => container.classList.toggle('collapsed');
-                line.appendChild(toggle);
+            // 1. Label Row (Key + Value Preview/Opener)
+            const label = document.createElement('div');
+            label.className = 'flex items-start';
+            
+            // Collapsible Marker (for objects/arrays)
+            if (type === 'object' || type === 'array') {
+                const isEmpty = Object.keys(data).length === 0;
+                
+                if (!isEmpty) {
+                    const marker = document.createElement('div');
+                    marker.className = 'collapsible-marker';
+                    marker.onclick = (e) => {
+                        e.stopPropagation();
+                        container.classList.toggle('collapsed');
+                    };
+                    label.appendChild(marker);
+                    
+                    // Allow clicking the label to toggle too
+                    label.style.cursor = 'pointer';
+                    label.onclick = (e) => {
+                        e.stopPropagation();
+                        container.classList.toggle('collapsed');
+                    }
+                }
+            } else {
+                // Spacer for alignment if no marker
+                const spacer = document.createElement('div');
+                spacer.style.width = '12px';
+                spacer.style.display = 'inline-block';
+                label.appendChild(spacer);
             }
 
-            if (label !== null) {
+            // Key (if exists)
+            if (key !== null) {
                 const keySpan = document.createElement('span');
                 keySpan.className = 'json-key';
-                keySpan.textContent = `"${label}"`;
-                keySpan.onclick = (e) => {
-                    e.stopPropagation();
-                    copyToClipboard(currentPath);
-                    showToast(`路徑已複製: ${currentPath || 'root'}`);
-                };
-                line.appendChild(keySpan);
-                line.appendChild(document.createTextNode(': '));
+                keySpan.textContent = `"${key}":`;
+                label.appendChild(keySpan);
             }
 
-            if (isObject) {
-                const openBracket = document.createTextNode(isArray ? '[' : '{');
-                line.appendChild(openBracket);
-
-                const count = isArray ? val.length : Object.keys(val).length;
-                const countSpan = document.createElement('span');
-                countSpan.className = 'item-count';
-                countSpan.textContent = `// ${count} ${isArray ? 'items' : 'keys'}`;
-                line.appendChild(countSpan);
-                container.appendChild(line);
-
-                const itemWrapper = document.createElement('div');
-                itemWrapper.className = 'json-item';
-                
-                if (isArray) {
-                    val.forEach((v, i) => {
-                        itemWrapper.appendChild(createTreeNode(v, `${path}[${i}]`, i === val.length - 1, null));
-                    });
-                } else {
-                    const keys = Object.keys(val);
-                    keys.forEach((k, i) => {
-                        const newPath = path ? `${path}.${k}` : k;
-                        itemWrapper.appendChild(createTreeNode(val[k], newPath, i === keys.length - 1, k));
-                    });
+            // Value
+            const valueSpan = document.createElement('span');
+            
+            if (type === 'object') {
+                const count = Object.keys(data).length;
+                valueSpan.innerHTML = `<span class="json-bracket">{</span> ${count === 0 ? '}' : ''}`;
+                if (count > 0) {
+                     const preview = document.createElement('span');
+                     preview.className = 'text-slate-500 text-xs ml-2 italic';
+                     preview.textContent = `Object {${count}}`;
+                     valueSpan.appendChild(preview);
                 }
-                container.appendChild(itemWrapper);
-
-                const closeBracket = document.createElement('div');
-                closeBracket.className = 'bracket-close';
-                closeBracket.textContent = (isArray ? ']' : '}') + (isLast ? '' : ',');
-                container.appendChild(closeBracket);
+            } else if (type === 'array') {
+                const count = data.length;
+                valueSpan.innerHTML = `<span class="json-bracket">[</span> ${count === 0 ? ']' : ''}`;
+                if (count > 0) {
+                    const preview = document.createElement('span');
+                    preview.className = 'text-slate-500 text-xs ml-2 italic';
+                    preview.textContent = `Array [${count}]`;
+                    valueSpan.appendChild(preview);
+                }
             } else {
-                const valSpan = document.createElement('span');
-                if (typeof val === 'string') {
-                    valSpan.className = 'json-string';
-                    valSpan.textContent = `"${val}"`;
-                } else if (typeof val === 'number') {
-                    valSpan.className = 'json-number';
-                    valSpan.textContent = val;
-                } else if (typeof val === 'boolean') {
-                    valSpan.className = 'json-boolean';
-                    valSpan.textContent = val;
-                } else if (val === null) {
-                    valSpan.className = 'json-null';
-                    valSpan.textContent = 'null';
+                // Primitives
+                if (type === 'string') {
+                    valueSpan.className = 'json-string';
+                    valueSpan.textContent = `"${data}"`;
+                } else if (type === 'number') {
+                    valueSpan.className = 'json-number';
+                    valueSpan.textContent = data;
+                } else if (type === 'boolean') {
+                    valueSpan.className = 'json-boolean';
+                    valueSpan.textContent = data;
+                } else if (type === 'null') {
+                    valueSpan.className = 'json-null';
+                    valueSpan.textContent = 'null';
                 }
-                line.appendChild(valSpan);
-                if (!isLast) line.appendChild(document.createTextNode(','));
-                container.appendChild(line);
+                
+                // Add comma if needed (handled by CSS usually, but simplifed here)
+                // We'll omit trailing commas for cleaner look or could add via JS logic
             }
+            
+            label.appendChild(valueSpan);
+            container.appendChild(label);
+
+            // 2. Children (Recursion)
+            if (type === 'object' || type === 'array') {
+                const keys = Object.keys(data);
+                if (keys.length > 0) {
+                    const childrenContainer = document.createElement('div');
+                    childrenContainer.className = 'json-children';
+                    
+                    keys.forEach(k => {
+                        childrenContainer.appendChild(createTree(data[k], type === 'array' ? null : k));
+                    });
+
+                    // Closing bracket
+                    const closingDiv = document.createElement('div');
+                    closingDiv.style.paddingLeft = '20px';
+                    closingDiv.innerHTML = `<span class="json-bracket">${type === 'object' ? '}' : ']'}</span>`; // Removed trailing comma logic for simplicity
+                    
+                    childrenContainer.appendChild(closingDiv);
+                    container.appendChild(childrenContainer);
+                }
+            }
+
             return container;
         }
 
-        // 搜尋邏輯
-        searchInput.oninput = e => {
-            const term = e.target.value.toLowerCase();
-            const nodes = jsonTree.querySelectorAll('.json-key, .json-string, .json-number, .json-boolean');
-            let found = 0;
+        function getDataType(data) {
+            if (data === null) return 'null';
+            if (Array.isArray(data)) return 'array';
+            return typeof data;
+        }
 
+        // --- Helpers ---
+
+        function toggleAll(expand) {
+            const nodes = document.querySelectorAll('.json-node');
             nodes.forEach(node => {
-                const text = node.textContent.toLowerCase();
-                if (term && text.includes(term)) {
-                    node.classList.add('search-highlight');
-                    found++;
-                    let p = node.closest('.collapsed');
-                    while(p) { p.classList.replace('collapsed', 'expanded'); p = p.parentElement.closest('.collapsed'); }
-                } else {
-                    node.classList.remove('search-highlight');
+                // Only target collapsible nodes (those with markers)
+                if (node.querySelector('.collapsible-marker')) {
+                    if (expand) {
+                        node.classList.remove('collapsed');
+                    } else {
+                        node.classList.add('collapsed');
+                    }
                 }
             });
-            searchCount.textContent = term ? `找到 ${found} 處` : '';
-            
-            // 自動捲動到第一個匹配
-            if (term && found > 0) {
-                const first = jsonTree.querySelector('.search-highlight');
-                if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        };
-
-        // 按鈕功能
-        document.getElementById('expandAll').onclick = () => jsonTree.querySelectorAll('.collapsed').forEach(n => n.classList.replace('collapsed', 'expanded'));
-        document.getElementById('collapseAll').onclick = () => jsonTree.querySelectorAll('.expanded').forEach(n => { if(n.parentElement !== jsonTree) n.classList.replace('expanded', 'collapsed')});
-        document.getElementById('clearBtn').onclick = () => { currentData = null; emptyState.classList.remove('hidden'); viewer.classList.add('hidden'); toolbar.classList.add('hidden'); fileInput.value = ''; };
-        document.getElementById('copyBtn').onclick = () => { copyToClipboard(JSON.stringify(currentData, null, 4)); showToast("完整 JSON 已複製"); };
-        document.getElementById('downloadBtn').onclick = () => {
-            const blob = new Blob([JSON.stringify(currentData, null, 4)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = 'data_formatted.json'; a.click();
-        };
-
-        function copyToClipboard(text) {
-            const el = document.createElement('textarea');
-            el.value = text;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
         }
 
-        function showToast(msg) {
-            toast.textContent = msg;
-            toast.style.opacity = '1';
-            setTimeout(() => toast.style.opacity = '0', 2000);
+        function filterJSON(term) {
+            // Very basic filtering: highlights matches and expands parents
+            // Reset visibility
+            const allNodes = document.querySelectorAll('.json-node');
+            allNodes.forEach(n => {
+                n.style.display = '';
+                // If filtering, styling changes could go here
+            });
+
+            if (!term) return;
+
+            // This is a visual search, logical filtering is complex in DOM.
+            // We will highlight text matches.
+            // (Simplified version: Expand all to help user find text via Ctrl+F)
+            if (term.length > 2) toggleAll(true);
         }
+
     </script>
 </body>
 </html>
